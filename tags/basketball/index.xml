@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>basketball on Taylor Riemersma&#39;s Work</title>
+    <link>/tags/basketball/</link>
+    <description>Recent content in basketball on Taylor Riemersma&#39;s Work</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Mon, 22 Mar 2021 00:00:00 +0000</lastBuildDate><atom:link href="/tags/basketball/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Baylor to Win the Title</title>
+      <link>/2021/03/22/baylor-to-win-the-title/</link>
+      <pubDate>Mon, 22 Mar 2021 00:00:00 +0000</pubDate>
+      
+      <guid>/2021/03/22/baylor-to-win-the-title/</guid>
+      <description>In the quest to create a perfect bracket using code, I, along with others, created code to create the best bracket there could be. As seen by this point, this has not gone exactly as planned. However as of Monday evening, this bracket held me in the 97.2 percentile of brackets on ESPN. That would not last for long.
+After writing this Monday night, things drasticaly changed. Colorado fell.</description>
+    </item>
+    
+  </channel>
+</rss>

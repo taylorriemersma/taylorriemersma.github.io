@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="generator" content="Hugo 0.81.0" />
+
+
+<title>Baylor to Win the Title - Taylor Riemersma&#39;s Work</title>
+<meta property="og:title" content="Baylor to Win the Title - Taylor Riemersma&#39;s Work">
+
+
+  <link href='/favicon.ico' rel='icon' type='image/x-icon'/>
+
+
+
+  
+
+
+
+
+
+
+
+
+<link href='//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css' rel='stylesheet' type='text/css' />
+
+
+
+<link rel="stylesheet" href="/css/fonts.css" media="all">
+<link rel="stylesheet" href="/css/main.css" media="all">
+
+
+
+  </head>
+  <body>
+    <div class="wrapper">
+      <header class="header">
+        <nav class="nav">
+  <a href="/" class="nav-logo">
+    <img src="/images/logo.png"
+         width="50"
+         height="50"
+         alt="Logo">
+  </a>
+
+  <ul class="nav-links">
+    
+    <li><a href="/about/">About</a></li>
+    
+    <li><a href="https://github.com/taylorriemersma">GitHub</a></li>
+    
+    <li><a href="https://twitter.com/TaylorRiemersma">Twitter</a></li>
+    
+  </ul>
+</nav>
+
+      </header>
+
+
+<main class="content" role="main">
+
+  <article class="article">
+    
+    <span class="article-duration">16 min read</span>
+    
+
+    <h1 class="article-title">Baylor to Win the Title</h1>
+
+    
+    <span class="article-date">2021-03-22</span>
+    
+
+    <div class="article-content">
+      
+<script src="/2021/03/22/baylor-to-win-the-title/index_files/header-attrs/header-attrs.js"></script>
+
+
+<p>In the quest to create a perfect bracket using code, I, along with others, created code to create the best bracket there could be. As seen by this point, this has not gone exactly as planned. However as of Monday evening, this bracket held me in the 97.2 percentile of brackets on ESPN. That would not last for long.</p>
+<p>After writing this Monday night, things drasticaly changed. Colorado fell. Iowa fell. I cried a bit. I moved on. I now sit in the 88 percentile and kissed the million dollar grand prize goodbye.</p>
+<p>Important note: One part of the model that was a shortfall was the dates were not changed. It shouldn’t matter given the data, but it must be noted.</p>
+<p>First, the libraries were imported.</p>
+<pre class="r"><code>library(tidyverse)</code></pre>
+<pre><code>## ── Attaching packages ─────────────────────────────────────── tidyverse 1.3.0 ──</code></pre>
+<pre><code>## ✓ ggplot2 3.3.3     ✓ purrr   0.3.4
+## ✓ tibble  3.0.5     ✓ dplyr   1.0.3
+## ✓ tidyr   1.1.2     ✓ stringr 1.4.0
+## ✓ readr   1.4.0     ✓ forcats 0.5.0</code></pre>
+<pre><code>## ── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+## x dplyr::filter() masks stats::filter()
+## x dplyr::lag()    masks stats::lag()</code></pre>
+<pre class="r"><code>library(tidymodels)</code></pre>
+<pre><code>## ── Attaching packages ────────────────────────────────────── tidymodels 0.1.2 ──</code></pre>
+<pre><code>## ✓ broom     0.7.3      ✓ recipes   0.1.15
+## ✓ dials     0.0.9      ✓ rsample   0.0.8 
+## ✓ infer     0.5.4      ✓ tune      0.1.2 
+## ✓ modeldata 0.1.0      ✓ workflows 0.2.1 
+## ✓ parsnip   0.1.5      ✓ yardstick 0.0.7</code></pre>
+<pre><code>## ── Conflicts ───────────────────────────────────────── tidymodels_conflicts() ──
+## x scales::discard() masks purrr::discard()
+## x dplyr::filter()   masks stats::filter()
+## x recipes::fixed()  masks stringr::fixed()
+## x dplyr::lag()      masks stats::lag()
+## x yardstick::spec() masks readr::spec()
+## x recipes::step()   masks stats::step()</code></pre>
+<pre class="r"><code>library(zoo)</code></pre>
+<pre><code>## 
+## Attaching package: &#39;zoo&#39;</code></pre>
+<pre><code>## The following objects are masked from &#39;package:base&#39;:
+## 
+##     as.Date, as.Date.numeric</code></pre>
+<pre class="r"><code>library(kableExtra)</code></pre>
+<pre><code>## 
+## Attaching package: &#39;kableExtra&#39;</code></pre>
+<pre><code>## The following object is masked from &#39;package:dplyr&#39;:
+## 
+##     group_rows</code></pre>
+<pre class="r"><code>set.seed(1234)</code></pre>
+<p>The metrics used for the project were the cumulative averages of the offensive and defensive rating and the rolling averages of field goal percentage and turnovers over the last ten games. Ten games allowed for some insight on the past of the team while also incorporating newer trends.</p>
+<pre class="r"><code>games &lt;- read_csv(&quot;~/Desktop/cbblogs1521.csv&quot;) %&gt;% mutate(
+  Possessions = .5*(TeamFGA - TeamOffRebounds + TeamTurnovers + (.475 * TeamFTA)) + .5*(OpponentFGA - OpponentOffRebounds + OpponentTurnovers + (.475 * OpponentFTA)),
+  OffensiveRating = (TeamScore/Possessions)*100, 
+  DefensiveRating = (OpponentScore/Possessions)*100
+  ) %&gt;%
+  group_by(Team, Season) %&gt;%
+  mutate(
+  Cumulative_Mean_Offensive = cummean(OffensiveRating),
+  Cumulative_Mean_Defensive = cummean(DefensiveRating),
+  Rolling_Mean_FGPCT = rollmean(TeamFG, k=10, fill=TeamFGPCT),
+  Rolling_Mean_Turnovers = rollmean(TeamTurnovers, k = 10, fill=TeamTurnovers)
+  ) %&gt;% ungroup() %&gt;% 
+  mutate(
+    Location = case_when(
+    str_trim(HomeAway) == &quot;@&quot; ~ &quot;A&quot;,
+    str_trim(HomeAway) == &quot;N&quot; ~ &quot;N&quot;,
+    TRUE ~ &quot;H&quot;
+  ),
+ Outcome = case_when(
+  grepl(&quot;W&quot;, W_L) ~ &quot;W&quot;, 
+  grepl(&quot;L&quot;, W_L) ~ &quot;L&quot;
+ )
+) %&gt;%
+  mutate(Outcome = as.factor(Outcome)) </code></pre>
+<pre><code>## 
+## ── Column specification ────────────────────────────────────────────────────────
+## cols(
+##   .default = col_double(),
+##   Season = col_character(),
+##   Date = col_date(format = &quot;&quot;),
+##   TeamFull = col_character(),
+##   Opponent = col_character(),
+##   HomeAway = col_character(),
+##   W_L = col_character(),
+##   URL = col_character(),
+##   Conference = col_character(),
+##   Team = col_character()
+## )
+## ℹ Use `spec()` for the full column specifications.</code></pre>
+<p>The data was then filtered using select to get the data needed and the same thing happened for the opponent, except we renamed all of that to be the team as well. Two sides tell a story you know. The two data files were then joined together.</p>
+<pre class="r"><code>selectedgames &lt;- games %&gt;% select(Season, Team, Date, Opponent, Outcome, Cumulative_Mean_Offensive, Cumulative_Mean_Defensive, Rolling_Mean_FGPCT, Rolling_Mean_Turnovers, TeamSRS, TeamSOS)</code></pre>
+<pre class="r"><code>opponentgames &lt;- selectedgames %&gt;% select(-Opponent) %&gt;% rename(Opponent = Team, Opponent_Cumulative_Offensive = Cumulative_Mean_Offensive, Opponent_Cumulative_Mean_Defensive = Cumulative_Mean_Defensive, Opponent_Rolling_Mean_FGPCT = Rolling_Mean_FGPCT, Opponent_Rolling_Mean_Turnovers = Rolling_Mean_Turnovers, OpponentSRS = TeamSRS, OpponentSOS = TeamSOS)</code></pre>
+<pre class="r"><code>bothsides &lt;- selectedgames %&gt;% left_join(opponentgames, by=c(&quot;Opponent&quot;, &quot;Date&quot;, &quot;Season&quot;)) %&gt;% na.omit() %&gt;% select(-Outcome.y) %&gt;% rename(Outcome = Outcome.x)</code></pre>
+<p>Here was standard procedure where the data was split into training and testing data sets.</p>
+<pre class="r"><code>log_split &lt;- initial_split(bothsides, prop = .8)
+log_train &lt;- training(log_split)
+log_test &lt;- testing(log_split)</code></pre>
+<p>A recipe was created.</p>
+<pre class="r"><code>log_recipe &lt;- 
+  recipe(Outcome ~ ., data = log_train) %&gt;% 
+  update_role(Team, Opponent, Date, Season, new_role = &quot;ID&quot;) %&gt;%
+  step_normalize(all_predictors())
+
+summary(log_recipe)</code></pre>
+<pre><code>## # A tibble: 17 x 4
+##    variable                           type    role      source  
+##    &lt;chr&gt;                              &lt;chr&gt;   &lt;chr&gt;     &lt;chr&gt;   
+##  1 Season                             nominal ID        original
+##  2 Team                               nominal ID        original
+##  3 Date                               date    ID        original
+##  4 Opponent                           nominal ID        original
+##  5 Cumulative_Mean_Offensive          numeric predictor original
+##  6 Cumulative_Mean_Defensive          numeric predictor original
+##  7 Rolling_Mean_FGPCT                 numeric predictor original
+##  8 Rolling_Mean_Turnovers             numeric predictor original
+##  9 TeamSRS                            numeric predictor original
+## 10 TeamSOS                            numeric predictor original
+## 11 Opponent_Cumulative_Offensive      numeric predictor original
+## 12 Opponent_Cumulative_Mean_Defensive numeric predictor original
+## 13 Opponent_Rolling_Mean_FGPCT        numeric predictor original
+## 14 Opponent_Rolling_Mean_Turnovers    numeric predictor original
+## 15 OpponentSRS                        numeric predictor original
+## 16 OpponentSOS                        numeric predictor original
+## 17 Outcome                            nominal outcome   original</code></pre>
+<p>Random forest was used under classification.</p>
+<pre class="r"><code>log_mod &lt;- 
+  rand_forest() %&gt;% 
+  set_engine(&quot;ranger&quot;) %&gt;%
+  set_mode(&quot;classification&quot;)</code></pre>
+<p>Created a workflow.</p>
+<pre class="r"><code>log_workflow &lt;- 
+  workflow() %&gt;% 
+  add_model(log_mod) %&gt;% 
+  add_recipe(log_recipe)</code></pre>
+<p>Created a fit.</p>
+<pre class="r"><code>log_fit &lt;- 
+  log_workflow %&gt;% 
+  fit(data = log_train)</code></pre>
+<p>Set the model to predict the training data.</p>
+<pre class="r"><code>trainpredict &lt;- log_fit %&gt;% predict(new_data = log_train) %&gt;%
+  bind_cols(log_train)
+
+trainpredict</code></pre>
+<pre><code>## # A tibble: 38,331 x 18
+##    .pred_class Season Team  Date       Opponent Outcome Cumulative_Mean…
+##    &lt;fct&gt;       &lt;chr&gt;  &lt;chr&gt; &lt;date&gt;     &lt;chr&gt;    &lt;fct&gt;              &lt;dbl&gt;
+##  1 L           2014-… Abil… 2014-11-19 Tulsa    L                   94.9
+##  2 L           2014-… Abil… 2014-11-22 Duquesne L                   97.4
+##  3 L           2014-… Abil… 2014-11-29 UC-Rive… L                   98.7
+##  4 L           2014-… Abil… 2014-12-04 Sacrame… W                  100. 
+##  5 L           2014-… Abil… 2014-12-06 Houston  L                   98.7
+##  6 L           2014-… Abil… 2014-12-17 Loyola … L                   95.7
+##  7 W           2014-… Abil… 2014-12-23 Arkansa… W                   92.9
+##  8 L           2014-… Abil… 2014-12-28 Grand C… L                   94.0
+##  9 W           2014-… Abil… 2015-01-04 Central… W                   96.0
+## 10 W           2014-… Abil… 2015-01-10 Nicholl… W                   96.3
+## # … with 38,321 more rows, and 11 more variables:
+## #   Cumulative_Mean_Defensive &lt;dbl&gt;, Rolling_Mean_FGPCT &lt;dbl&gt;,
+## #   Rolling_Mean_Turnovers &lt;dbl&gt;, TeamSRS &lt;dbl&gt;, TeamSOS &lt;dbl&gt;,
+## #   Opponent_Cumulative_Offensive &lt;dbl&gt;,
+## #   Opponent_Cumulative_Mean_Defensive &lt;dbl&gt;,
+## #   Opponent_Rolling_Mean_FGPCT &lt;dbl&gt;, Opponent_Rolling_Mean_Turnovers &lt;dbl&gt;,
+## #   OpponentSRS &lt;dbl&gt;, OpponentSOS &lt;dbl&gt;</code></pre>
+<p>Did the same but to get both the winning and losing percentages.</p>
+<pre class="r"><code>trainpredict &lt;- log_fit %&gt;% predict(new_data = log_train, type=&quot;prob&quot;) %&gt;%
+  bind_cols(trainpredict)
+
+trainpredict</code></pre>
+<pre><code>## # A tibble: 38,331 x 20
+##    .pred_L .pred_W .pred_class Season Team  Date       Opponent Outcome
+##      &lt;dbl&gt;   &lt;dbl&gt; &lt;fct&gt;       &lt;chr&gt;  &lt;chr&gt; &lt;date&gt;     &lt;chr&gt;    &lt;fct&gt;  
+##  1   0.945  0.0549 L           2014-… Abil… 2014-11-19 Tulsa    L      
+##  2   0.964  0.0362 L           2014-… Abil… 2014-11-22 Duquesne L      
+##  3   0.933  0.0675 L           2014-… Abil… 2014-11-29 UC-Rive… L      
+##  4   0.518  0.482  L           2014-… Abil… 2014-12-04 Sacrame… W      
+##  5   0.936  0.0644 L           2014-… Abil… 2014-12-06 Houston  L      
+##  6   0.986  0.0137 L           2014-… Abil… 2014-12-17 Loyola … L      
+##  7   0.190  0.810  W           2014-… Abil… 2014-12-23 Arkansa… W      
+##  8   0.890  0.110  L           2014-… Abil… 2014-12-28 Grand C… L      
+##  9   0.131  0.869  W           2014-… Abil… 2015-01-04 Central… W      
+## 10   0.203  0.797  W           2014-… Abil… 2015-01-10 Nicholl… W      
+## # … with 38,321 more rows, and 12 more variables:
+## #   Cumulative_Mean_Offensive &lt;dbl&gt;, Cumulative_Mean_Defensive &lt;dbl&gt;,
+## #   Rolling_Mean_FGPCT &lt;dbl&gt;, Rolling_Mean_Turnovers &lt;dbl&gt;, TeamSRS &lt;dbl&gt;,
+## #   TeamSOS &lt;dbl&gt;, Opponent_Cumulative_Offensive &lt;dbl&gt;,
+## #   Opponent_Cumulative_Mean_Defensive &lt;dbl&gt;,
+## #   Opponent_Rolling_Mean_FGPCT &lt;dbl&gt;, Opponent_Rolling_Mean_Turnovers &lt;dbl&gt;,
+## #   OpponentSRS &lt;dbl&gt;, OpponentSOS &lt;dbl&gt;</code></pre>
+<p>After applying the model, I wanted to look into how well the model applied to the training data. 98.71%. Doesn’t seem bad until you consider whether it overfitted for what we wanted. To determine this, the testing data must be analyzed.</p>
+<pre class="r"><code>metrics(trainpredict, Outcome, .pred_class)</code></pre>
+<pre><code>## # A tibble: 2 x 3
+##   .metric  .estimator .estimate
+##   &lt;chr&gt;    &lt;chr&gt;          &lt;dbl&gt;
+## 1 accuracy binary         0.987
+## 2 kap      binary         0.974</code></pre>
+<pre><code>##           Truth
+## Prediction     L     W
+##          L 18966   256
+##          W   238 18871</code></pre>
+<pre><code>## # A tibble: 1 x 3
+##   .metric .estimator .estimate
+##   &lt;chr&gt;   &lt;chr&gt;          &lt;dbl&gt;
+## 1 roc_auc binary      0.000577</code></pre>
+<pre><code>## # A tibble: 1 x 3
+##   .metric .estimator .estimate
+##   &lt;chr&gt;   &lt;chr&gt;          &lt;dbl&gt;
+## 1 roc_auc binary         0.999</code></pre>
+<pre><code>## # A tibble: 9,582 x 18
+##    .pred_class Season Team  Date       Opponent Outcome Cumulative_Mean…
+##    &lt;fct&gt;       &lt;chr&gt;  &lt;chr&gt; &lt;date&gt;     &lt;chr&gt;    &lt;fct&gt;              &lt;dbl&gt;
+##  1 W           2014-… Abil… 2014-12-22 South C… W                   91.8
+##  2 L           2014-… Abil… 2015-03-05 Incarna… L                   95.3
+##  3 L           2014-… Air … 2015-02-04 New Mex… W                  107. 
+##  4 L           2014-… Air … 2015-02-21 Colorad… L                  106. 
+##  5 W           2014-… Akron 2014-12-04 Western… W                  103. 
+##  6 W           2014-… Akron 2015-01-06 Western… W                  103. 
+##  7 L           2014-… Akron 2015-01-17 Central… W                  103. 
+##  8 W           2014-… Akron 2015-03-09 Norther… W                  103. 
+##  9 L           2014-… Alab… 2014-11-25 Jackson… L                   87.9
+## 10 L           2014-… Alab… 2014-12-19 Marquet… L                   84.1
+## # … with 9,572 more rows, and 11 more variables:
+## #   Cumulative_Mean_Defensive &lt;dbl&gt;, Rolling_Mean_FGPCT &lt;dbl&gt;,
+## #   Rolling_Mean_Turnovers &lt;dbl&gt;, TeamSRS &lt;dbl&gt;, TeamSOS &lt;dbl&gt;,
+## #   Opponent_Cumulative_Offensive &lt;dbl&gt;,
+## #   Opponent_Cumulative_Mean_Defensive &lt;dbl&gt;,
+## #   Opponent_Rolling_Mean_FGPCT &lt;dbl&gt;, Opponent_Rolling_Mean_Turnovers &lt;dbl&gt;,
+## #   OpponentSRS &lt;dbl&gt;, OpponentSOS &lt;dbl&gt;</code></pre>
+<pre><code>## # A tibble: 9,582 x 20
+##    .pred_L .pred_W .pred_class Season Team  Date       Opponent Outcome
+##      &lt;dbl&gt;   &lt;dbl&gt; &lt;fct&gt;       &lt;chr&gt;  &lt;chr&gt; &lt;date&gt;     &lt;chr&gt;    &lt;fct&gt;  
+##  1  0.291   0.709  W           2014-… Abil… 2014-12-22 South C… W      
+##  2  0.834   0.166  L           2014-… Abil… 2015-03-05 Incarna… L      
+##  3  0.640   0.360  L           2014-… Air … 2015-02-04 New Mex… W      
+##  4  0.797   0.203  L           2014-… Air … 2015-02-21 Colorad… L      
+##  5  0.0804  0.920  W           2014-… Akron 2014-12-04 Western… W      
+##  6  0.423   0.577  W           2014-… Akron 2015-01-06 Western… W      
+##  7  0.640   0.360  L           2014-… Akron 2015-01-17 Central… W      
+##  8  0.402   0.598  W           2014-… Akron 2015-03-09 Norther… W      
+##  9  0.562   0.438  L           2014-… Alab… 2014-11-25 Jackson… L      
+## 10  0.984   0.0162 L           2014-… Alab… 2014-12-19 Marquet… L      
+## # … with 9,572 more rows, and 12 more variables:
+## #   Cumulative_Mean_Offensive &lt;dbl&gt;, Cumulative_Mean_Defensive &lt;dbl&gt;,
+## #   Rolling_Mean_FGPCT &lt;dbl&gt;, Rolling_Mean_Turnovers &lt;dbl&gt;, TeamSRS &lt;dbl&gt;,
+## #   TeamSOS &lt;dbl&gt;, Opponent_Cumulative_Offensive &lt;dbl&gt;,
+## #   Opponent_Cumulative_Mean_Defensive &lt;dbl&gt;,
+## #   Opponent_Rolling_Mean_FGPCT &lt;dbl&gt;, Opponent_Rolling_Mean_Turnovers &lt;dbl&gt;,
+## #   OpponentSRS &lt;dbl&gt;, OpponentSOS &lt;dbl&gt;</code></pre>
+<p>The testing data had a 73.29% accuracy rate. While it is not great by any means, it’s not terrible for what it was designed to do. This led to worries of overfitting, I decided to move forward anyway.</p>
+<pre class="r"><code>metrics(testpredict, Outcome, .pred_class)</code></pre>
+<pre><code>## # A tibble: 2 x 3
+##   .metric  .estimator .estimate
+##   &lt;chr&gt;    &lt;chr&gt;          &lt;dbl&gt;
+## 1 accuracy binary         0.733
+## 2 kap      binary         0.466</code></pre>
+<pre><code>## Joining, by = &quot;Team&quot;</code></pre>
+<pre><code>## # A tibble: 4 x 19
+##   .pred_L .pred_W .pred_class Team  Opponent Opponent_Cumula… Opponent_Cumula…
+##     &lt;dbl&gt;   &lt;dbl&gt; &lt;fct&gt;       &lt;chr&gt; &lt;chr&gt;               &lt;dbl&gt;            &lt;dbl&gt;
+## 1   0.517   0.483 L           Norf… Appalac…            103.              94.8
+## 2   0.558   0.442 L           Wich… Drake               114.              94.3
+## 3   0.420   0.580 W           Moun… Texas S…             98.2             94.1
+## 4   0.644   0.356 L           Mich… UCLA                107.             100. 
+## # … with 12 more variables: Opponent_Rolling_Mean_FGPCT &lt;dbl&gt;,
+## #   Opponent_Rolling_Mean_Turnovers &lt;dbl&gt;, OpponentSRS &lt;dbl&gt;,
+## #   OpponentSOS &lt;dbl&gt;, Season &lt;chr&gt;, Cumulative_Mean_Offensive &lt;dbl&gt;,
+## #   Cumulative_Mean_Defensive &lt;dbl&gt;, Rolling_Mean_FGPCT &lt;dbl&gt;,
+## #   Rolling_Mean_Turnovers &lt;dbl&gt;, TeamSRS &lt;dbl&gt;, TeamSOS &lt;dbl&gt;, Date &lt;date&gt;</code></pre>
+<pre class="r"><code># Correct spellings of play in games
+# Norfolk State or Appalachian State in first game against Gonzaga
+# Wichita State or Drake against USC
+
+west &lt;- tibble(
+  Team=&quot;Gonzaga&quot;,
+  Opponent=&quot;Appalachian State&quot;,
+  Date = as.Date(&quot;2021-03-19&quot;)
+) %&gt;% add_row(
+  Team=&quot;Oklahoma&quot;,
+  Opponent=&quot;Missouri&quot;,
+  Date = as.Date(&quot;2021-03-19&quot;)
+) %&gt;% add_row(
+  Team=&quot;Creighton&quot;,
+  Opponent=&quot;UC-Santa Barbara&quot;,
+  Date = as.Date(&quot;2021-03-19&quot;)
+) %&gt;% add_row(
+  Team=&quot;Virginia&quot;,
+  Opponent=&quot;Ohio&quot;,
+  Date = as.Date(&quot;2021-03-19&quot;)
+) %&gt;% add_row(
+  Team=&quot;Southern California&quot;,
+  Opponent=&quot;Drake&quot;,
+  Date = as.Date(&quot;2021-03-19&quot;)
+) %&gt;% add_row(
+  Team=&quot;Kansas&quot;,
+  Opponent=&quot;Eastern Washington&quot;,
+  Date = as.Date(&quot;2021-03-19&quot;)
+) %&gt;% add_row(
+  Team=&quot;Oregon&quot;,
+  Opponent=&quot;Virginia Commonwealth&quot;,
+  Date = as.Date(&quot;2021-03-19&quot;)
+) %&gt;% add_row(
+  Team=&quot;Iowa&quot;,
+  Opponent=&quot;Grand Canyon&quot;,
+  Date = as.Date(&quot;2021-03-19&quot;)
+)</code></pre>
+<pre class="r"><code>west1 &lt;- selectedgames %&gt;% group_by(Team) %&gt;% filter(Date == max(Date), Season == &quot;2020-2021&quot;) %&gt;% select(-Date, -Opponent, -Outcome) %&gt;% right_join(west)</code></pre>
+<pre><code>## Joining, by = &quot;Team&quot;</code></pre>
+<pre class="r"><code>west2 &lt;- opponentgames %&gt;% group_by(Opponent) %&gt;% filter(Date == max(Date)) %&gt;% ungroup()  %&gt;% select(-Season, -Date, -Outcome) %&gt;% right_join(west1, by=c(&quot;Opponent&quot;)) %&gt;% select(Team, everything())</code></pre>
+<pre class="r"><code>west3 &lt;- log_fit %&gt;% predict(new_data = west2) %&gt;%
+  bind_cols(west2) 
+
+log_fit %&gt;% predict(new_data = west3, type=&quot;prob&quot;) %&gt;%
+  bind_cols(west3)</code></pre>
+<pre><code>## # A tibble: 8 x 19
+##   .pred_L .pred_W .pred_class Team  Opponent Opponent_Cumula… Opponent_Cumula…
+##     &lt;dbl&gt;   &lt;dbl&gt; &lt;fct&gt;       &lt;chr&gt; &lt;chr&gt;               &lt;dbl&gt;            &lt;dbl&gt;
+## 1  0.0759   0.924 W           Gonz… Appalac…             103.             94.8
+## 2  0.322    0.678 W           Crei… UC-Sant…             110.             90.5
+## 3  0.371    0.629 W           Sout… Drake                114.             94.3
+## 4  0.239    0.761 W           Kans… Eastern…             108.             97.9
+## 5  0.271    0.729 W           Iowa  Grand C…             108.             90.0
+## 6  0.480    0.520 W           Okla… Missouri             103.            100. 
+## 7  0.272    0.728 W           Virg… Ohio                 111.            102. 
+## 8  0.437    0.563 W           Oreg… Virgini…             100.             90.2
+## # … with 12 more variables: Opponent_Rolling_Mean_FGPCT &lt;dbl&gt;,
+## #   Opponent_Rolling_Mean_Turnovers &lt;dbl&gt;, OpponentSRS &lt;dbl&gt;,
+## #   OpponentSOS &lt;dbl&gt;, Season &lt;chr&gt;, Cumulative_Mean_Offensive &lt;dbl&gt;,
+## #   Cumulative_Mean_Defensive &lt;dbl&gt;, Rolling_Mean_FGPCT &lt;dbl&gt;,
+## #   Rolling_Mean_Turnovers &lt;dbl&gt;, TeamSRS &lt;dbl&gt;, TeamSOS &lt;dbl&gt;, Date &lt;date&gt;</code></pre>
+<p>Finally, the model was fit to the data which led us to being able to predict who would win. The Oklahoma - Missouri game was a tossup, but what else can be expected from an 8 v. 9 seed matchup? For the model’s sake, all winners were inputted into the bracket as the model said the winner would be.</p>
+<p>The process was repeated for the second round of the west bracket.</p>
+<pre class="r"><code>westr2 &lt;- tibble(
+  Team=&quot;Gonzaga&quot;,
+  Opponent=&quot;Oklahoma&quot;,
+  Date = as.Date(&quot;2021-03-19&quot;)
+) %&gt;% add_row(
+  Team=&quot;Creighton&quot;,
+  Opponent=&quot;Virginia Commonwealth&quot;,
+  Date = as.Date(&quot;2021-03-19&quot;)
+) %&gt;% add_row(
+  Team=&quot;Southern California&quot;,
+  Opponent=&quot;Kansas&quot;,
+  Date = as.Date(&quot;2021-03-19&quot;)
+) %&gt;% add_row(
+  Team=&quot;Oregon&quot;,
+  Opponent=&quot;Iowa&quot;,
+  Date = as.Date(&quot;2021-03-19&quot;))</code></pre>
+<pre class="r"><code>westr21 &lt;- selectedgames %&gt;% group_by(Team) %&gt;% filter(Date == max(Date), Season == &quot;2020-2021&quot;) %&gt;% select(-Date, -Opponent, -Outcome) %&gt;% right_join(westr2)</code></pre>
+<pre><code>## Joining, by = &quot;Team&quot;</code></pre>
+<pre class="r"><code>westr22 &lt;- opponentgames %&gt;% group_by(Opponent) %&gt;% filter(Date == max(Date)) %&gt;% ungroup()  %&gt;% select(-Season, -Date, -Outcome) %&gt;% right_join(westr21, by=c(&quot;Opponent&quot;)) %&gt;% select(Team, everything())</code></pre>
+<pre class="r"><code>westr23 &lt;- log_fit %&gt;% predict(new_data = westr22) %&gt;%
+  bind_cols(westr22) 
+
+log_fit %&gt;% predict(new_data = westr23, type=&quot;prob&quot;) %&gt;%
+  bind_cols(westr23)</code></pre>
+<pre><code>## # A tibble: 4 x 19
+##   .pred_L .pred_W .pred_class Team  Opponent Opponent_Cumula… Opponent_Cumula…
+##     &lt;dbl&gt;   &lt;dbl&gt; &lt;fct&gt;       &lt;chr&gt; &lt;chr&gt;               &lt;dbl&gt;            &lt;dbl&gt;
+## 1   0.565   0.435 L           Oreg… Iowa                 118.             99.8
+## 2   0.503   0.497 L           Sout… Kansas               104.             93.4
+## 3   0.224   0.776 W           Gonz… Oklahoma             105.             97.2
+## 4   0.389   0.611 W           Crei… Virgini…             100.             90.2
+## # … with 12 more variables: Opponent_Rolling_Mean_FGPCT &lt;dbl&gt;,
+## #   Opponent_Rolling_Mean_Turnovers &lt;dbl&gt;, OpponentSRS &lt;dbl&gt;,
+## #   OpponentSOS &lt;dbl&gt;, Season &lt;chr&gt;, Cumulative_Mean_Offensive &lt;dbl&gt;,
+## #   Cumulative_Mean_Defensive &lt;dbl&gt;, Rolling_Mean_FGPCT &lt;dbl&gt;,
+## #   Rolling_Mean_Turnovers &lt;dbl&gt;, TeamSRS &lt;dbl&gt;, TeamSOS &lt;dbl&gt;, Date &lt;date&gt;</code></pre>
+<p>Iowa vs. Kansas. That didn’t go as well as thought.</p>
+<p>Gonzaga vs. Creighton. The model wasn’t a complete bust. (Yet)</p>
+<p>Next up: Round Three.</p>
+<pre class="r"><code>westr3 &lt;- tibble(
+  Team=&quot;Gonzaga&quot;,
+  Opponent=&quot;Creighton&quot;,
+  Date = as.Date(&quot;2021-03-19&quot;)
+) %&gt;% add_row(
+  Team=&quot;Iowa&quot;,
+  Opponent=&quot;Kansas&quot;,
+  Date = as.Date(&quot;2021-03-19&quot;)
+) </code></pre>
+<pre class="r"><code>westr31 &lt;- selectedgames %&gt;% group_by(Team) %&gt;% filter(Date == max(Date), Season == &quot;2020-2021&quot;) %&gt;% select(-Date, -Opponent, -Outcome) %&gt;% right_join(westr3)</code></pre>
+<pre><code>## Joining, by = &quot;Team&quot;</code></pre>
+<pre class="r"><code>westr32 &lt;- opponentgames %&gt;% group_by(Opponent) %&gt;% filter(Date == max(Date)) %&gt;% ungroup()  %&gt;% select(-Season, -Date, -Outcome) %&gt;% right_join(westr31, by=c(&quot;Opponent&quot;)) %&gt;% select(Team, everything())</code></pre>
+<pre class="r"><code>westr33 &lt;- log_fit %&gt;% predict(new_data = westr32) %&gt;%
+  bind_cols(westr32) 
+
+log_fit %&gt;% predict(new_data = westr33, type=&quot;prob&quot;) %&gt;%
+  bind_cols(westr33)</code></pre>
+<pre><code>## # A tibble: 2 x 19
+##   .pred_L .pred_W .pred_class Team  Opponent Opponent_Cumula… Opponent_Cumula…
+##     &lt;dbl&gt;   &lt;dbl&gt; &lt;fct&gt;       &lt;chr&gt; &lt;chr&gt;               &lt;dbl&gt;            &lt;dbl&gt;
+## 1   0.293   0.707 W           Gonz… Creight…             109.             96.0
+## 2   0.444   0.556 W           Iowa  Kansas               104.             93.4
+## # … with 12 more variables: Opponent_Rolling_Mean_FGPCT &lt;dbl&gt;,
+## #   Opponent_Rolling_Mean_Turnovers &lt;dbl&gt;, OpponentSRS &lt;dbl&gt;,
+## #   OpponentSOS &lt;dbl&gt;, Season &lt;chr&gt;, Cumulative_Mean_Offensive &lt;dbl&gt;,
+## #   Cumulative_Mean_Defensive &lt;dbl&gt;, Rolling_Mean_FGPCT &lt;dbl&gt;,
+## #   Rolling_Mean_Turnovers &lt;dbl&gt;, TeamSRS &lt;dbl&gt;, TeamSOS &lt;dbl&gt;, Date &lt;date&gt;</code></pre>
+<p>Gonzaga vs. Iowa. Again, not how things quite turned out. Thanks Oregon.</p>
+<p>Round Four.</p>
+<pre class="r"><code>westr4 &lt;- tibble(
+  Team=&quot;Gonzaga&quot;,
+  Opponent=&quot;Iowa&quot;,
+  Date = as.Date(&quot;2021-03-19&quot;)
+)</code></pre>
+<pre class="r"><code>westr41 &lt;- selectedgames %&gt;% group_by(Team) %&gt;% filter(Date == max(Date), Season == &quot;2020-2021&quot;) %&gt;% select(-Date, -Opponent, -Outcome) %&gt;% right_join(westr4)</code></pre>
+<pre><code>## Joining, by = &quot;Team&quot;</code></pre>
+<pre class="r"><code>westr42 &lt;- opponentgames %&gt;% group_by(Opponent) %&gt;% filter(Date == max(Date)) %&gt;% ungroup()  %&gt;% select(-Season, -Date, -Outcome) %&gt;% right_join(westr41, by=c(&quot;Opponent&quot;)) %&gt;% select(Team, everything())</code></pre>
+<pre class="r"><code>westr43 &lt;- log_fit %&gt;% predict(new_data = westr42) %&gt;%
+  bind_cols(westr42) 
+
+log_fit %&gt;% predict(new_data = westr43, type=&quot;prob&quot;) %&gt;%
+  bind_cols(westr43)</code></pre>
+<pre><code>## # A tibble: 1 x 19
+##   .pred_L .pred_W .pred_class Team  Opponent Opponent_Cumula… Opponent_Cumula…
+##     &lt;dbl&gt;   &lt;dbl&gt; &lt;fct&gt;       &lt;chr&gt; &lt;chr&gt;               &lt;dbl&gt;            &lt;dbl&gt;
+## 1   0.287   0.713 W           Gonz… Iowa                 118.             99.8
+## # … with 12 more variables: Opponent_Rolling_Mean_FGPCT &lt;dbl&gt;,
+## #   Opponent_Rolling_Mean_Turnovers &lt;dbl&gt;, OpponentSRS &lt;dbl&gt;,
+## #   OpponentSOS &lt;dbl&gt;, Season &lt;chr&gt;, Cumulative_Mean_Offensive &lt;dbl&gt;,
+## #   Cumulative_Mean_Defensive &lt;dbl&gt;, Rolling_Mean_FGPCT &lt;dbl&gt;,
+## #   Rolling_Mean_Turnovers &lt;dbl&gt;, TeamSRS &lt;dbl&gt;, TeamSOS &lt;dbl&gt;, Date &lt;date&gt;</code></pre>
+<p>Gonzaga moves on to the Final four to represent the West.</p>
+<p>From here on out the code was very repetitive. I ommitted a maojrity of it until the Final Four.</p>
+<p>At long last, after a lot of repetitive code and name inputs, the Final Four was finally here.</p>
+<pre class="r"><code>semifinal &lt;- tibble(
+  Team=&quot;Gonzaga&quot;,
+  Opponent=&quot;Colorado&quot;,
+  Date = as.Date(&quot;2021-03-19&quot;)
+)</code></pre>
+<pre class="r"><code>semifinal1 &lt;- selectedgames %&gt;% group_by(Team) %&gt;% filter(Date == max(Date), Season == &quot;2020-2021&quot;) %&gt;% select(-Date, -Opponent, -Outcome) %&gt;% right_join(semifinal)</code></pre>
+<pre><code>## Joining, by = &quot;Team&quot;</code></pre>
+<pre class="r"><code>semifinal2 &lt;- opponentgames %&gt;% group_by(Opponent) %&gt;% filter(Date == max(Date)) %&gt;% ungroup()  %&gt;% select(-Season, -Date, -Outcome) %&gt;% right_join(semifinal1, by=c(&quot;Opponent&quot;)) %&gt;% select(Team, everything())</code></pre>
+<pre class="r"><code>semifinal3 &lt;- log_fit %&gt;% predict(new_data = semifinal2) %&gt;%
+  bind_cols(semifinal2) 
+
+log_fit %&gt;% predict(new_data = semifinal3, type=&quot;prob&quot;) %&gt;%
+  bind_cols(semifinal3)</code></pre>
+<pre><code>## # A tibble: 1 x 19
+##   .pred_L .pred_W .pred_class Team  Opponent Opponent_Cumula… Opponent_Cumula…
+##     &lt;dbl&gt;   &lt;dbl&gt; &lt;fct&gt;       &lt;chr&gt; &lt;chr&gt;               &lt;dbl&gt;            &lt;dbl&gt;
+## 1   0.436   0.564 W           Gonz… Colorado             109.             93.3
+## # … with 12 more variables: Opponent_Rolling_Mean_FGPCT &lt;dbl&gt;,
+## #   Opponent_Rolling_Mean_Turnovers &lt;dbl&gt;, OpponentSRS &lt;dbl&gt;,
+## #   OpponentSOS &lt;dbl&gt;, Season &lt;chr&gt;, Cumulative_Mean_Offensive &lt;dbl&gt;,
+## #   Cumulative_Mean_Defensive &lt;dbl&gt;, Rolling_Mean_FGPCT &lt;dbl&gt;,
+## #   Rolling_Mean_Turnovers &lt;dbl&gt;, TeamSRS &lt;dbl&gt;, TeamSOS &lt;dbl&gt;, Date &lt;date&gt;</code></pre>
+<p>Gonzaga would have beat Colorado (had Colorado not choked in the Round of 32).</p>
+<pre class="r"><code>semifinal1 &lt;- tibble(
+  Team=&quot;Baylor&quot;,
+  Opponent=&quot;Houston&quot;,
+  Date = as.Date(&quot;2021-03-19&quot;)
+)</code></pre>
+<pre class="r"><code>semifinal11 &lt;- selectedgames %&gt;% group_by(Team) %&gt;% filter(Date == max(Date), Season == &quot;2020-2021&quot;) %&gt;% select(-Date, -Opponent, -Outcome) %&gt;% right_join(semifinal1)</code></pre>
+<pre><code>## Joining, by = &quot;Team&quot;</code></pre>
+<pre class="r"><code>semifinal12 &lt;- opponentgames %&gt;% group_by(Opponent) %&gt;% filter(Date == max(Date)) %&gt;% ungroup()  %&gt;% select(-Season, -Date, -Outcome) %&gt;% right_join(semifinal11, by=c(&quot;Opponent&quot;)) %&gt;% select(Team, everything())</code></pre>
+<pre class="r"><code>semifinal13 &lt;- log_fit %&gt;% predict(new_data = semifinal12) %&gt;%
+  bind_cols(semifinal12) 
+
+log_fit %&gt;% predict(new_data = semifinal13, type=&quot;prob&quot;) %&gt;%
+  bind_cols(semifinal13)</code></pre>
+<pre><code>## # A tibble: 1 x 19
+##   .pred_L .pred_W .pred_class Team  Opponent Opponent_Cumula… Opponent_Cumula…
+##     &lt;dbl&gt;   &lt;dbl&gt; &lt;fct&gt;       &lt;chr&gt; &lt;chr&gt;               &lt;dbl&gt;            &lt;dbl&gt;
+## 1   0.494   0.506 W           Bayl… Houston              113.             84.1
+## # … with 12 more variables: Opponent_Rolling_Mean_FGPCT &lt;dbl&gt;,
+## #   Opponent_Rolling_Mean_Turnovers &lt;dbl&gt;, OpponentSRS &lt;dbl&gt;,
+## #   OpponentSOS &lt;dbl&gt;, Season &lt;chr&gt;, Cumulative_Mean_Offensive &lt;dbl&gt;,
+## #   Cumulative_Mean_Defensive &lt;dbl&gt;, Rolling_Mean_FGPCT &lt;dbl&gt;,
+## #   Rolling_Mean_Turnovers &lt;dbl&gt;, TeamSRS &lt;dbl&gt;, TeamSOS &lt;dbl&gt;, Date &lt;date&gt;</code></pre>
+<p>Baylor would beat Houston. This one was quite the tossup with the model saying it was basically a 50/50 chance for either team to win.</p>
+<p>With Colorado and Houston defeated we’re left with the top two seeds in the entire bracket to face off in the championship game.</p>
+<pre class="r"><code>finals &lt;- tibble(
+  Team=&quot;Gonzaga&quot;,
+  Opponent=&quot;Baylor&quot;,
+  Date = as.Date(&quot;2021-03-19&quot;)
+)</code></pre>
+<pre class="r"><code>finals1 &lt;- selectedgames %&gt;% group_by(Team) %&gt;% filter(Date == max(Date), Season == &quot;2020-2021&quot;) %&gt;% select(-Date, -Opponent, -Outcome) %&gt;% right_join(finals)</code></pre>
+<pre><code>## Joining, by = &quot;Team&quot;</code></pre>
+<pre class="r"><code>finals2 &lt;- opponentgames %&gt;% group_by(Opponent) %&gt;% filter(Date == max(Date)) %&gt;% ungroup()  %&gt;% select(-Season, -Date, -Outcome) %&gt;% right_join(finals1, by=c(&quot;Opponent&quot;)) %&gt;% select(Team, everything())</code></pre>
+<pre class="r"><code>finals3 &lt;- log_fit %&gt;% predict(new_data = finals2) %&gt;%
+  bind_cols(finals2) 
+
+log_fit %&gt;% predict(new_data = finals3, type=&quot;prob&quot;) %&gt;%
+  bind_cols(finals3)</code></pre>
+<pre><code>## # A tibble: 1 x 19
+##   .pred_L .pred_W .pred_class Team  Opponent Opponent_Cumula… Opponent_Cumula…
+##     &lt;dbl&gt;   &lt;dbl&gt; &lt;fct&gt;       &lt;chr&gt; &lt;chr&gt;               &lt;dbl&gt;            &lt;dbl&gt;
+## 1   0.526   0.474 L           Gonz… Baylor               118.             91.2
+## # … with 12 more variables: Opponent_Rolling_Mean_FGPCT &lt;dbl&gt;,
+## #   Opponent_Rolling_Mean_Turnovers &lt;dbl&gt;, OpponentSRS &lt;dbl&gt;,
+## #   OpponentSOS &lt;dbl&gt;, Season &lt;chr&gt;, Cumulative_Mean_Offensive &lt;dbl&gt;,
+## #   Cumulative_Mean_Defensive &lt;dbl&gt;, Rolling_Mean_FGPCT &lt;dbl&gt;,
+## #   Rolling_Mean_Turnovers &lt;dbl&gt;, TeamSRS &lt;dbl&gt;, TeamSOS &lt;dbl&gt;, Date &lt;date&gt;</code></pre>
+<p>Baylor defeats Gonzaga! The perfect season has eluded the Bulldogs. Better luck next year!</p>
+<p>The code needs some obvious work and it turned out better than my bracket did without the analytics. As of this writing, my Final Four remained intact with only having two Elite Eight teams taken down. (Again, knock on wood.) My conclusion up to this point is this model may be better at predicting later games but not he early ones. Good thing the later matchups get one more points.</p>
+<p>The model didn’t go quite as smoothly as predicted, but it’s not terrible either. If the bracket didn’t require one to fill it out all at once, I’d feel a bit better about the model. But for now, I’ll take it.</p>
+<p>Brackets are always a mess.</p>
+<p>As Mike Tyson once said, “Everybody has a plan until they get punched in the mouth.”</p>
+
+    </div>
+  </article>
+
+  
+
+
+</main>
+
+      <footer class="footer">
+        <ul class="footer-links">
+          <li>
+            <a href="/index.xml" type="application/rss+xml" target="_blank">RSS feed</a>
+          </li>
+          <li>
+            <a href="https://gohugo.io/" class="footer-links-kudos">Made with <img src="/images/hugo-logo.png" alt="Img link to Hugo website" width="22" height="22"></a>
+          </li>
+        </ul>
+      </footer>
+
+    </div>
+    
+
+
+
+<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+
+
+
+<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/r.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/yaml.min.js"></script>
+<script>hljs.configure({languages: []}); hljs.initHighlightingOnLoad();</script>
+
+
+
+    
+
+    
+  </body>
+</html>
+
