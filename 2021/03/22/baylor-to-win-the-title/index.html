@@ -62,7 +62,7 @@
 
   <article class="article">
     
-    <span class="article-duration">16 min read</span>
+    <span class="article-duration">18 min read</span>
     
 
     <h1 class="article-title">Baylor to Win the Title</h1>
@@ -77,7 +77,7 @@
 
 
 <p>In the quest to create a perfect bracket using code, I, along with others, created code to create the best bracket there could be. As seen by this point, this has not gone exactly as planned. However as of Monday evening, this bracket held me in the 97.2 percentile of brackets on ESPN. That would not last for long.</p>
-<p>After writing this Monday night, things drasticaly changed. Colorado fell. Iowa fell. I cried a bit. I moved on. I now sit in the 88 percentile and kissed the million dollar grand prize goodbye.</p>
+<p>After writing this Monday night, things drastically changed. Colorado fell. Iowa fell. I cried a bit. I moved on. I now sit in the 88 percentile and kissed the million dollar grand prize goodbye.</p>
 <p>Important note: One part of the model that was a shortfall was the dates were not changed. It shouldn’t matter given the data, but it must be noted.</p>
 <p>First, the libraries were imported.</p>
 <pre class="r"><code>library(tidyverse)</code></pre>
@@ -117,6 +117,7 @@
 ##     group_rows</code></pre>
 <pre class="r"><code>set.seed(1234)</code></pre>
 <p>The metrics used for the project were the cumulative averages of the offensive and defensive rating and the rolling averages of field goal percentage and turnovers over the last ten games. Ten games allowed for some insight on the past of the team while also incorporating newer trends.</p>
+<p>The Cumulative Mean is where the whole season is considered and an average is calculated after each game. Rolling Means are where one can take a set number of games and see what the average is of those games after each has been played. The set number of games would start at the last game played and go back from there.</p>
 <pre class="r"><code>games &lt;- read_csv(&quot;~/Desktop/cbblogs1521.csv&quot;) %&gt;% mutate(
   Possessions = .5*(TeamFGA - TeamOffRebounds + TeamTurnovers + (.475 * TeamFTA)) + .5*(OpponentFGA - OpponentOffRebounds + OpponentTurnovers + (.475 * OpponentFTA)),
   OffensiveRating = (TeamScore/Possessions)*100, 
@@ -192,6 +193,7 @@ summary(log_recipe)</code></pre>
 ## 16 OpponentSOS                        numeric predictor original
 ## 17 Outcome                            nominal outcome   original</code></pre>
 <p>Random forest was used under classification.</p>
+<p>Random Forest was chosen as the decision trees felt the most effective as they create about 500 different trees and average them together. It helps create decisions and show tendencies throughout the season by teams.</p>
 <pre class="r"><code>log_mod &lt;- 
   rand_forest() %&gt;% 
   set_engine(&quot;ranger&quot;) %&gt;%
@@ -205,7 +207,7 @@ summary(log_recipe)</code></pre>
 <pre class="r"><code>log_fit &lt;- 
   log_workflow %&gt;% 
   fit(data = log_train)</code></pre>
-<p>Set the model to predict the training data.</p>
+<p>Set the model to predict the training data. This seemed decent so I rolled with it.</p>
 <pre class="r"><code>trainpredict &lt;- log_fit %&gt;% predict(new_data = log_train) %&gt;%
   bind_cols(log_train)
 
@@ -230,7 +232,7 @@ trainpredict</code></pre>
 ## #   Opponent_Cumulative_Mean_Defensive &lt;dbl&gt;,
 ## #   Opponent_Rolling_Mean_FGPCT &lt;dbl&gt;, Opponent_Rolling_Mean_Turnovers &lt;dbl&gt;,
 ## #   OpponentSRS &lt;dbl&gt;, OpponentSOS &lt;dbl&gt;</code></pre>
-<p>Did the same but to get both the winning and losing percentages.</p>
+<p>Did the same as before, but to get both the winning and losing percentages.</p>
 <pre class="r"><code>trainpredict &lt;- log_fit %&gt;% predict(new_data = log_train, type=&quot;prob&quot;) %&gt;%
   bind_cols(trainpredict)
 
@@ -314,7 +316,7 @@ trainpredict</code></pre>
 ## #   Opponent_Cumulative_Mean_Defensive &lt;dbl&gt;,
 ## #   Opponent_Rolling_Mean_FGPCT &lt;dbl&gt;, Opponent_Rolling_Mean_Turnovers &lt;dbl&gt;,
 ## #   OpponentSRS &lt;dbl&gt;, OpponentSOS &lt;dbl&gt;</code></pre>
-<p>The testing data had a 73.29% accuracy rate. While it is not great by any means, it’s not terrible for what it was designed to do. This led to worries of overfitting, I decided to move forward anyway.</p>
+<p>The testing data had a 73.29% accuracy rate. While it is not great by any means, it’s not terrible for what it was designed to do. This led to worries of overfitting, but I decided to move forward anyway.</p>
 <pre class="r"><code>metrics(testpredict, Outcome, .pred_class)</code></pre>
 <pre><code>## # A tibble: 2 x 3
 ##   .metric  .estimator .estimate
@@ -334,11 +336,8 @@ trainpredict</code></pre>
 ## #   OpponentSOS &lt;dbl&gt;, Season &lt;chr&gt;, Cumulative_Mean_Offensive &lt;dbl&gt;,
 ## #   Cumulative_Mean_Defensive &lt;dbl&gt;, Rolling_Mean_FGPCT &lt;dbl&gt;,
 ## #   Rolling_Mean_Turnovers &lt;dbl&gt;, TeamSRS &lt;dbl&gt;, TeamSOS &lt;dbl&gt;, Date &lt;date&gt;</code></pre>
-<pre class="r"><code># Correct spellings of play in games
-# Norfolk State or Appalachian State in first game against Gonzaga
-# Wichita State or Drake against USC
-
-west &lt;- tibble(
+<p>First, the teams playing needed to be added to a data set so the algorithm knew who to place against each other.</p>
+<pre class="r"><code>west &lt;- tibble(
   Team=&quot;Gonzaga&quot;,
   Opponent=&quot;Appalachian State&quot;,
   Date = as.Date(&quot;2021-03-19&quot;)
@@ -371,9 +370,11 @@ west &lt;- tibble(
   Opponent=&quot;Grand Canyon&quot;,
   Date = as.Date(&quot;2021-03-19&quot;)
 )</code></pre>
+<p>The two data sets thaen needed to be joined into one.</p>
 <pre class="r"><code>west1 &lt;- selectedgames %&gt;% group_by(Team) %&gt;% filter(Date == max(Date), Season == &quot;2020-2021&quot;) %&gt;% select(-Date, -Opponent, -Outcome) %&gt;% right_join(west)</code></pre>
 <pre><code>## Joining, by = &quot;Team&quot;</code></pre>
 <pre class="r"><code>west2 &lt;- opponentgames %&gt;% group_by(Opponent) %&gt;% filter(Date == max(Date)) %&gt;% ungroup()  %&gt;% select(-Season, -Date, -Outcome) %&gt;% right_join(west1, by=c(&quot;Opponent&quot;)) %&gt;% select(Team, everything())</code></pre>
+<p>Finally, the model needed to be applied to the data leading us to be able to extract results.</p>
 <pre class="r"><code>west3 &lt;- log_fit %&gt;% predict(new_data = west2) %&gt;%
   bind_cols(west2) 
 
@@ -488,7 +489,46 @@ log_fit %&gt;% predict(new_data = westr43, type=&quot;prob&quot;) %&gt;%
 ## #   Cumulative_Mean_Defensive &lt;dbl&gt;, Rolling_Mean_FGPCT &lt;dbl&gt;,
 ## #   Rolling_Mean_Turnovers &lt;dbl&gt;, TeamSRS &lt;dbl&gt;, TeamSOS &lt;dbl&gt;, Date &lt;date&gt;</code></pre>
 <p>Gonzaga moves on to the Final four to represent the West.</p>
-<p>From here on out the code was very repetitive. I ommitted a maojrity of it until the Final Four.</p>
+<p>From here on out the code was very repetitive. I omitted a majority of it until the Final Four. While the code is not shown, I will list who won and what the matchups are for each round.</p>
+<p>East</p>
+<p>Teams that advance to the Round of 32:
+Michigan - St. Bonaventure
+Colorado - Florida State
+BYU - Texas
+Maryland - Alabama</p>
+<p>The Sweet 16:
+St. Bonaventure - Colorado
+BYU - Alabama</p>
+<p>Elite Eight:
+Colorado - Alabama</p>
+<p>Final Four:
+Colorado</p>
+<p>South</p>
+<p>Teams advancing to the Round of 32:
+Baylor - Wisconsin
+Villanova - Purdue
+Texas Tech - Arkansas
+Florida - Ohio State</p>
+<p>Sweet 16:
+Baylor - Villanova
+Arkansas - Florida</p>
+<p>Elite Eight:
+Baylor - Arkansas</p>
+<p>Final Four:
+Baylor</p>
+<p>Midwest</p>
+<p>Teams advancing to the Round of 32:
+Illinois - Loyola Chicago
+Tennessee - Oklahoma State
+San Diego State - West Virginia
+Rutgers - Houston</p>
+<p>Sweet 16:
+Illinois - Oklahoma State
+San Diego State - Houston</p>
+<p>Elite Eight:
+Illinois - Houston</p>
+<p>Final Four:
+Houston</p>
 <p>At long last, after a lot of repetitive code and name inputs, the Final Four was finally here.</p>
 <pre class="r"><code>semifinal &lt;- tibble(
   Team=&quot;Gonzaga&quot;,
